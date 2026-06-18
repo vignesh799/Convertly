@@ -10,24 +10,6 @@ const app = express();
 const port = Number(process.env.PORT) || 4173;
 const uploadDir = path.join(os.tmpdir(), "convertly-uploads");
 const maxFileSize = 500 * 1024 * 1024;
-const visitorFile = path.join(__dirname, "data", "visitor-count.json");
-let visitorUpdate = Promise.resolve();
-
-async function updateVisitorCount() {
-  await fs.mkdir(path.dirname(visitorFile), { recursive: true });
-  let count = 0;
-  try {
-    const saved = JSON.parse(await fs.readFile(visitorFile, "utf8"));
-    count = Number.isFinite(saved.count) ? saved.count : 0;
-  } catch (error) {
-    if (error.code !== "ENOENT") console.error("Could not read visitor count:", error);
-  }
-  count += 2;
-  const temporaryFile = `${visitorFile}.${crypto.randomUUID()}.tmp`;
-  await fs.writeFile(temporaryFile, JSON.stringify({ count, updatedAt: new Date().toISOString() }, null, 2));
-  await fs.rename(temporaryFile, visitorFile);
-  return count;
-}
 
 const storage = multer.diskStorage({
   destination: async (_request, _file, callback) => {
@@ -72,17 +54,6 @@ app.get("/api/health", (_request, response) => {
 
 app.get("/api/formats", (_request, response) => {
   response.json(capabilities);
-});
-
-app.post("/api/visit", async (_request, response) => {
-  try {
-    visitorUpdate = visitorUpdate.then(updateVisitorCount, updateVisitorCount);
-    const count = await visitorUpdate;
-    response.set("Cache-Control", "no-store").json({ count, increment: 2 });
-  } catch (error) {
-    console.error("Could not update visitor count:", error);
-    response.status(500).json({ error: "Visitor count is temporarily unavailable." });
-  }
 });
 
 app.post("/api/convert", upload.single("file"), async (request, response) => {

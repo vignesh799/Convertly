@@ -5,29 +5,14 @@ const queue = document.querySelector("#queue");
 const fileList = document.querySelector("#fileList");
 const fileCount = document.querySelector("#fileCount");
 const clearButton = document.querySelector("#clearButton");
-const themeButtons = [...document.querySelectorAll(".theme-switcher [data-theme]")];
+const themeToggle = document.querySelector("#themeToggle");
 const toast = document.querySelector("#toast");
-const visitorCount = document.querySelector("#visitorCount");
 const quickFormatButtons = [...document.querySelectorAll(".format-cloud [data-output]")];
 
 let files = [];
 let presetFormat = null;
 let capabilities = {};
 let apiBase = "";
-
-function animateVisitorCount(target) {
-  const duration = 750;
-  const startedAt = performance.now();
-  const formatter = new Intl.NumberFormat();
-  function frame(now) {
-    const progress = Math.min((now - startedAt) / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3);
-    const current = Math.round(target * eased / 10) * 10;
-    visitorCount.textContent = `${formatter.format(current)}+`;
-    if (progress < 1) requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
-}
 
 async function findApi() {
   const candidates = [""];
@@ -67,19 +52,6 @@ const apiReady = findApi().then(base => {
 }).catch(error => {
   showToast("The conversion service is offline. Start the app with npm start.");
   throw error;
-});
-
-apiReady.then(() => fetch(`${apiBase}/api/visit`, {
-  method: "POST",
-  cache: "no-store",
-  keepalive: true
-})).then(response => {
-  if (!response.ok) throw new Error("Visitor count unavailable");
-  return response.json();
-}).then(({ count }) => {
-  animateVisitorCount(count);
-}).catch(() => {
-  visitorCount.textContent = "—";
 });
 
 const formatMap = {
@@ -213,28 +185,11 @@ document.querySelectorAll(".format-card").forEach(card => {
   });
 });
 
-function applyTheme(theme) {
-  const isDark = theme === "dark";
-  document.documentElement.classList.toggle("dark-mode", isDark);
-  document.body.classList.remove("dark");
-  document.documentElement.style.colorScheme = theme;
-  themeButtons.forEach(button => {
-    const active = button.dataset.theme === theme;
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
-}
-
-const savedTheme = localStorage.getItem("convertly-theme");
-applyTheme(savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
-
-themeButtons.forEach(button => {
-  button.addEventListener("click", () => {
-    const theme = button.dataset.theme;
-    localStorage.setItem("convertly-theme", theme);
-    applyTheme(theme);
-  });
+themeToggle.addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  localStorage.setItem("convertly-theme", document.body.classList.contains("dark") ? "dark" : "light");
 });
+if (localStorage.getItem("convertly-theme") === "dark") document.body.classList.add("dark");
 
 function showToast(message) {
   toast.textContent = message;
