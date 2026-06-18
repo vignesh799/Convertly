@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Convertly — fast, friendly file conversion for documents, images, audio, video and more.">
   <title>Convertly — Convert anything</title>
+  <script>
+    (() => {
+      const savedTheme = localStorage.getItem("convertly-theme");
+      const theme = savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      if (theme === "dark") document.documentElement.classList.add("dark-mode");
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
@@ -28,9 +35,16 @@
       </nav>
 
       <div class="nav-actions">
-        <button class="icon-button" id="themeToggle" aria-label="Toggle dark mode">
-          <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
-        </button>
+        <div class="theme-switcher" aria-label="Color theme">
+          <button type="button" data-theme="light" aria-pressed="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
+            <span>Light</span>
+          </button>
+          <button type="button" data-theme="dark" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.3 15.1A8.5 8.5 0 0 1 8.9 3.7 8.5 8.5 0 1 0 20.3 15.1z"/></svg>
+            <span>Dark</span>
+          </button>
+        </div>
         <a class="nav-button" href="#converter">Start converting</a>
       </div>
     </header>
@@ -40,6 +54,13 @@
         <div class="eyebrow"><span></span> One tool. Every format.</div>
         <h1>Convert anything.<br><em>Keep everything.</em></h1>
         <p class="hero-copy">Documents, images, audio, video, and more — transformed into the format you need, without the friction.</p>
+        <div class="visitor-badge" aria-live="polite">
+          <span class="visitor-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 19c.8-3.4 3-5.2 6.5-5.2s5.7 1.8 6.5 5.2M17.5 5.5a3 3 0 0 1 0 5M19 13.5c1.8.8 2.9 2.2 3.4 4.3M6.5 5.5a3 3 0 0 0 0 5M5 13.5c-1.8.8-2.9 2.2-3.4 4.3"/></svg>
+          </span>
+          <span><strong id="visitorCount">0+</strong><small>site visitors</small></span>
+          <i><b></b> Live</i>
+        </div>
 
         <div class="converter-card">
           <div class="upload-zone" id="uploadZone" tabindex="0" role="button" aria-label="Upload files">

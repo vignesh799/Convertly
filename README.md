@@ -19,6 +19,8 @@ Open `http://127.0.0.1:4173`.
 
 The free instance has limited CPU and 512 MB RAM, so large video conversions can be slow or run out of memory. It also sleeps after 15 minutes without traffic and takes up to about a minute to wake.
 
+The built-in visitor counter starts at 1,000, increases by 2 on every page load, and is stored in `data/visitor-count.json`. Render's free filesystem is temporary, so the count can reset after a redeploy or service restart. Use a hosted database for permanent production analytics.
+
 ## Supported conversions
 
 - Images: JPG, PNG, WebP, AVIF, TIFF and image-to-PDF
