@@ -6,8 +6,9 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const sharp = require("sharp");
 const ExcelJS = require("exceljs");
+const { Document, Packer, Paragraph } = require("docx");
 const ffmpegPath = require("ffmpeg-static");
-const { convertFile } = require("../converter");
+const { convertFile, capabilities } = require("../converter");
 
 async function withTempDirectory(callback) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "convertly-test-"));
@@ -53,6 +54,30 @@ test("offers document quick downloads as DOCX, JPG, PNG and ZIP", async () => wi
   assert.equal(jpg.buffer.subarray(0, 2).toString("hex"), "ffd8");
   assert.equal(png.buffer.subarray(1, 4).toString(), "PNG");
   assert.equal(zip.buffer.subarray(0, 2).toString(), "PK");
+}));
+
+test("converts legacy DOC through every document output route", async () => withTempDirectory(async directory => {
+  const legacyPath = path.join(directory, "legacy-word.doc");
+  const document = new Document({ sections: [{ children: [new Paragraph("Legacy DOC conversion matrix")] }] });
+  // Word Extractor detects the package contents, which lets this fixture exercise
+  // the .DOC routing independently of Microsoft Word being installed.
+  await fs.writeFile(legacyPath, await Packer.toBuffer(document));
+
+  const expected = {
+    pdf: buffer => buffer.subarray(0, 4).toString() === "%PDF",
+    docx: buffer => buffer.subarray(0, 2).toString() === "PK",
+    jpg: buffer => buffer.subarray(0, 2).toString("hex") === "ffd8",
+    png: buffer => buffer.subarray(1, 4).toString() === "PNG",
+    zip: buffer => buffer.subarray(0, 2).toString() === "PK",
+    txt: buffer => buffer.toString().includes("Legacy DOC conversion matrix"),
+    html: buffer => buffer.toString().includes("Legacy DOC conversion matrix")
+  };
+
+  assert.deepEqual(capabilities.doc, ["doc", "pdf", "docx", "txt", "html", "jpg", "png", "zip"]);
+  for (const [format, isValid] of Object.entries(expected)) {
+    const result = await convertFile(legacyPath, "legacy-word.doc", format);
+    assert.equal(isValid(result.buffer), true, `DOC to ${format.toUpperCase()} should be valid`);
+  }
 }));
 
 test("converts PNG to JPG and PDF", async () => withTempDirectory(async directory => {

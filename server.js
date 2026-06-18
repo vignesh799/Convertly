@@ -4,7 +4,7 @@ const path = require("node:path");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const crypto = require("node:crypto");
-const { capabilities, convertFile, mimeTypes, extensionOf } = require("./converter");
+const { capabilities, convertFile, mimeTypes, previewFile } = require("./converter");
 
 const app = express();
 const port = Number(process.env.PORT) || 4173;
@@ -83,6 +83,26 @@ app.get("/api/health", (_request, response) => {
 
 app.get("/api/formats", (_request, response) => {
   response.json(capabilities);
+});
+
+app.post("/api/preview", upload.single("file"), async (request, response) => {
+  if (!request.file) return response.status(400).json({ error: "Choose a file to preview." });
+  try {
+    const preview = await previewFile(request.file.path, request.file.originalname);
+    if (!preview) return response.status(415).json({ error: "Preview is not available for this format." });
+    response.set({
+      "Content-Type": preview.mimeType,
+      "Content-Length": String(preview.buffer.length),
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    });
+    response.send(preview.buffer);
+  } catch (error) {
+    console.error(error);
+    response.status(422).json({ error: "This file could not be previewed." });
+  } finally {
+    await fs.rm(request.file.path, { force: true }).catch(() => {});
+  }
 });
 
 app.get("/api/download/:token", async (request, response) => {

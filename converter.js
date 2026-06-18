@@ -3,10 +3,12 @@ const path = require("node:path");
 const os = require("node:os");
 const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
+const fsSync = require("node:fs");
 const sharp = require("sharp");
 const PDFDocument = require("pdfkit");
 const { PDFDocument: PDFLibDocument } = require("pdf-lib");
 const mammoth = require("mammoth");
+const WordExtractor = require("word-extractor");
 const { Document, Packer, Paragraph, TextRun, ImageRun } = require("docx");
 const ExcelJS = require("exceljs");
 const archiver = require("archiver");
@@ -16,6 +18,7 @@ const IMAGE_FORMATS = new Set(["jpg", "jpeg", "png", "webp", "avif", "tiff", "gi
 const MEDIA_FORMATS = new Set(["mp3", "wav", "aac", "ogg", "flac", "m4a", "mp4", "webm", "mov", "mkv", "avi", "gif"]);
 const TEXT_FORMATS = new Set(["txt", "md", "json", "xml", "html", "htm"]);
 const SHEET_FORMATS = new Set(["xlsx", "csv"]);
+const wordExtractor = new WordExtractor();
 
 const capabilities = {
   jpg: ["jpg", "png", "webp", "avif", "tiff", "pdf", "docx", "zip"],
@@ -26,6 +29,7 @@ const capabilities = {
   tiff: ["tiff", "jpg", "png", "webp", "avif", "pdf", "docx", "zip"],
   gif: ["gif", "mp4", "webm", "jpg", "png", "webp", "zip"],
   pdf: ["pdf", "docx", "txt", "jpg", "png", "zip"],
+  doc: ["doc", "pdf", "docx", "txt", "html", "jpg", "png", "zip"],
   docx: ["docx", "pdf", "txt", "html", "jpg", "png", "zip"],
   txt: ["txt", "pdf", "docx", "html", "jpg", "png", "zip"],
   md: ["md", "pdf", "docx", "html", "txt", "jpg", "png", "zip"],
@@ -117,9 +121,142 @@ async function imageToDocx(inputPath, title) {
   const scale = Math.min(maxWidth / metadata.width, 1);
   const document = new Document({ sections: [{ children: [
     new Paragraph({ children: [new TextRun({ text: title, bold: true, size: 32, color: "246B52" })], spacing: { after: 240 } }),
-    new Paragraph({ children: [new ImageRun({ data: image, transformation: { width: Math.round(metadata.width * scale), height: Math.round(metadata.height * scale) } })] })
+    new Paragraph({ children: [new ImageRun({
+      data: image,
+      type: "png",
+      transformation: { width: Math.round(metadata.width * scale), height: Math.round(metadata.height * scale) }
+    })] })
   ] }] });
   return Packer.toBuffer(document);
+}
+
+function runProcess(command, args, options = {}) {
+  const timeoutMs = options.timeoutMs || 90_000;
+  const spawnOptions = { ...options };
+  delete spawnOptions.timeoutMs;
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { windowsHide: true, ...spawnOptions });
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      if (process.platform === "win32") {
+        spawn("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true });
+      } else {
+        child.kill("SIGKILL");
+      }
+    }, timeoutMs);
+    timer.unref?.();
+    child.stdout?.on("data", chunk => { stdout = (stdout + chunk).slice(-8000); });
+    child.stderr?.on("data", chunk => { stderr = (stderr + chunk).slice(-8000); });
+    child.on("error", error => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on("close", code => {
+      clearTimeout(timer);
+      if (timedOut) return reject(new Error("Document rendering timed out. The file may be damaged or password protected."));
+      return code === 0
+        ? resolve({ stdout, stderr })
+        : reject(new Error(`Document renderer failed (${code}): ${stderr || stdout}`));
+    });
+  });
+}
+
+function findSoffice() {
+  const candidates = [
+    process.env.SOFFICE_PATH,
+    "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+    "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
+    "/usr/bin/soffice",
+    "/usr/local/bin/soffice"
+  ].filter(Boolean);
+  return candidates.find(candidate => fsSync.existsSync(candidate)) || null;
+}
+
+async function renderWithOffice(inputPath, outputExt) {
+  const workDir = await fs.mkdtemp(path.join(os.tmpdir(), "convertly-office-"));
+  const sourceExt = path.extname(inputPath) || ".docx";
+  const stagedInput = path.join(workDir, `source${sourceExt}`);
+  await fs.copyFile(inputPath, stagedInput);
+  try {
+    const soffice = findSoffice();
+    if (soffice) {
+      const filter = outputExt === "pdf" ? "pdf:writer_pdf_Export" : "docx:Office Open XML Text";
+      await runProcess(soffice, [
+        "--headless", "--nologo", "--nodefault", "--nolockcheck",
+        "--convert-to", filter, "--outdir", workDir, stagedInput
+      ], { timeoutMs: 120_000 });
+    } else {
+      throw new Error("A document rendering engine is not installed.");
+    }
+    const expectedPath = path.join(workDir, `source.${outputExt}`);
+    const buffer = await fs.readFile(expectedPath);
+    return { buffer, extension: outputExt };
+  } finally {
+    await fs.rm(workDir, { recursive: true, force: true });
+  }
+}
+
+async function extractDocxImages(buffer) {
+  const images = [];
+  await mammoth.convertToHtml({ buffer }, {
+    convertImage: mammoth.images.imgElement(async image => {
+      const data = await image.read();
+      images.push(Buffer.from(data));
+      return { src: "" };
+    })
+  });
+  return images.filter(image => image.length > 0);
+}
+
+async function imagesToPdf(images) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const chunks = [];
+      const document = new PDFDocument({ autoFirstPage: false, margin: 0 });
+      document.on("data", chunk => chunks.push(chunk));
+      document.on("end", () => resolve(Buffer.concat(chunks)));
+      document.on("error", reject);
+      for (const source of images) {
+        const image = await sharp(source).rotate().flatten({ background: "#ffffff" }).jpeg({ quality: 94 }).toBuffer();
+        const metadata = await sharp(image).metadata();
+        const landscape = metadata.width > metadata.height;
+        const pageWidth = landscape ? 841.89 : 595.28;
+        const pageHeight = landscape ? 595.28 : 841.89;
+        const margin = 24;
+        const scale = Math.min((pageWidth - margin * 2) / metadata.width, (pageHeight - margin * 2) / metadata.height);
+        const width = metadata.width * scale;
+        const height = metadata.height * scale;
+        document.addPage({ size: [pageWidth, pageHeight], margin: 0 });
+        document.image(image, (pageWidth - width) / 2, (pageHeight - height) / 2, { width, height });
+      }
+      document.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+async function convertDocxVisual(inputPath, originalName, outputExt) {
+  const buffer = await fs.readFile(inputPath);
+  const images = await extractDocxImages(buffer).catch(() => []);
+  const title = path.basename(originalName, path.extname(originalName));
+  if (images.length) {
+    if (outputExt === "pdf") return { buffer: await imagesToPdf(images), extension: "pdf" };
+    const converted = [];
+    for (let index = 0; index < images.length; index++) {
+      const normalized = outputExt === "jpg" ? "jpeg" : "png";
+      const image = await sharp(images[index]).rotate().toFormat(normalized, normalized === "jpeg" ? { quality: 94 } : {}).toBuffer();
+      converted.push({ name: `page-${String(index + 1).padStart(3, "0")}.${outputExt}`, buffer: image });
+    }
+    if (converted.length === 1) return { buffer: converted[0].buffer, extension: outputExt };
+    return { buffer: await zipBuffers(converted), extension: "zip", suffix: `-${outputExt}-pages` };
+  }
+  const text = await extractText(inputPath, "docx");
+  if (outputExt === "pdf") return { buffer: await textToPdf(text, title), extension: "pdf" };
+  return { buffer: await textToImage(text, title, outputExt), extension: outputExt };
 }
 
 async function textToImage(text, title, outputExt) {
@@ -174,6 +311,16 @@ async function extractText(inputPath, inputExt) {
       pages.push(content.items.map(item => item.str).join(" ").trim());
     }
     return pages.join("\n\n").trim();
+  }
+  if (inputExt === "doc") {
+    const document = await wordExtractor.extract(buffer);
+    return [
+      document.getHeaders(),
+      document.getBody(),
+      document.getFootnotes(),
+      document.getEndnotes(),
+      document.getTextboxes()
+    ].filter(Boolean).join("\n").trim();
   }
   if (inputExt === "docx") return (await mammoth.extractRawText({ buffer })).value.trim();
   const raw = buffer.toString("utf8");
@@ -305,6 +452,42 @@ async function renderPdfPages(inputPath, outputExt) {
   return { buffer: await zipBuffers(pages), extension: "zip", suffix: `-${outputExt}-pages` };
 }
 
+async function renderPdfFirstPage(inputPath) {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const { createCanvas } = require("@napi-rs/canvas");
+  const data = new Uint8Array(await fs.readFile(inputPath));
+  const document = await pdfjs.getDocument({ data, useSystemFonts: true, disableFontFace: false }).promise;
+  const page = await document.getPage(1);
+  const viewport = page.getViewport({ scale: 1.35 });
+  const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  return canvas.toBuffer("image/png");
+}
+
+async function previewFile(inputPath, originalName) {
+  const inputExt = extensionOf(originalName);
+  if (IMAGE_FORMATS.has(inputExt)) {
+    return { buffer: await sharp(inputPath).rotate().png().toBuffer(), mimeType: "image/png" };
+  }
+  if (inputExt === "pdf") {
+    return { buffer: await renderPdfFirstPage(inputPath), mimeType: "image/png" };
+  }
+  if (inputExt === "docx") {
+    const buffer = await fs.readFile(inputPath);
+    const images = await extractDocxImages(buffer).catch(() => []);
+    if (images.length) return { buffer: await sharp(images[0]).rotate().png().toBuffer(), mimeType: "image/png" };
+    const text = await extractText(inputPath, inputExt);
+    return { buffer: await textToImage(text, path.basename(originalName, path.extname(originalName)), "png"), mimeType: "image/png" };
+  }
+  if (inputExt === "doc" || TEXT_FORMATS.has(inputExt) || SHEET_FORMATS.has(inputExt)) {
+    const text = SHEET_FORMATS.has(inputExt)
+      ? workbookToText(await loadWorkbook(inputPath, inputExt))
+      : await extractText(inputPath, inputExt);
+    return { buffer: await textToImage(text, path.basename(originalName, path.extname(originalName)), "png"), mimeType: "image/png" };
+  }
+  return null;
+}
+
 function zipBuffers(files) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -328,6 +511,34 @@ async function convertFile(inputPath, originalName, requestedOutput) {
   }
   if (outputExt === "zip") {
     return { buffer: await zipBuffers([{ name: originalName, buffer: originalBuffer }]), extension: "zip" };
+  }
+  if (inputExt === "docx" && outputExt === "pdf") {
+    if (findSoffice()) return renderWithOffice(inputPath, "pdf");
+    return convertDocxVisual(inputPath, originalName, "pdf");
+  }
+  if (inputExt === "doc" && outputExt === "docx") {
+    if (findSoffice()) return renderWithOffice(inputPath, "docx");
+    const text = await extractText(inputPath, "doc");
+    return { buffer: await textToDocx(text, path.basename(originalName, path.extname(originalName))), extension: "docx" };
+  }
+  if (inputExt === "doc" && outputExt === "pdf") {
+    if (findSoffice()) return renderWithOffice(inputPath, "pdf");
+    const text = await extractText(inputPath, "doc");
+    return { buffer: await textToPdf(text, path.basename(originalName, path.extname(originalName))), extension: "pdf" };
+  }
+  if (inputExt === "docx" && ["jpg", "png"].includes(outputExt)) {
+    if (findSoffice()) {
+      const renderedPdf = await renderWithOffice(inputPath, "pdf");
+      const temporaryDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "convertly-rendered-pdf-"));
+      const pdfPath = path.join(temporaryDirectory, "source.pdf");
+      try {
+        await fs.writeFile(pdfPath, renderedPdf.buffer);
+        return renderPdfPages(pdfPath, outputExt);
+      } finally {
+        await fs.rm(temporaryDirectory, { recursive: true, force: true });
+      }
+    }
+    return convertDocxVisual(inputPath, originalName, outputExt);
   }
 
   if (IMAGE_FORMATS.has(inputExt) && outputExt === "docx") {
@@ -364,4 +575,4 @@ async function convertFile(inputPath, originalName, requestedOutput) {
   throw new Error("No converter is available for this route.");
 }
 
-module.exports = { capabilities, convertFile, mimeTypes, extensionOf };
+module.exports = { capabilities, convertFile, mimeTypes, extensionOf, imageToDocx, previewFile };

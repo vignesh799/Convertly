@@ -37,26 +37,65 @@
 
     <main>
       <section class="hero" id="converter">
-        <div class="eyebrow"><span></span> One tool. Every format.</div>
+        <div class="eyebrow"><span></span> One tool. Every format. <i id="serviceStatus">Connecting...</i></div>
         <h1>Convert anything.<br><em>Keep everything.</em></h1>
         <p class="hero-copy">Documents, images, audio, video, and more — transformed into the format you need, without the friction.</p>
 
         <div class="converter-card">
-          <div class="upload-zone" id="uploadZone" tabindex="0" role="button" aria-label="Upload files">
-            <input id="fileInput" type="file" multiple hidden>
-            <div class="upload-art" aria-hidden="true">
-              <div class="file-card file-back"><span>JPG</span></div>
-              <div class="file-card file-front">
-                <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+          <div class="converter-workspace">
+            <div class="upload-zone" id="uploadZone" tabindex="0" role="button" aria-label="Upload files">
+              <input id="fileInput" type="file" multiple hidden>
+              <div class="upload-art" aria-hidden="true">
+                <div class="file-card file-back"><span>JPG</span></div>
+                <div class="file-card file-front">
+                  <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+                </div>
+              </div>
+              <span class="drop-kicker">UPLOAD</span>
+              <h2>Drop your files here</h2>
+              <p>or choose from your device</p>
+              <button class="choose-button" id="chooseButton">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5h6l2-2h4l2 2h4v11H3z"/><circle cx="12" cy="13" r="3.2"/></svg>
+                Choose files
+              </button>
+              <small>Up to 500 MB per file</small>
+            </div>
+
+            <div class="queue-panel" id="queuePanel">
+              <div class="queue-empty" id="queueEmpty">
+                <span class="empty-icon">
+                  <svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>
+                </span>
+                <h3>Your files appear here</h3>
+                <p>Select a file on the left. Its details and download format will show here instantly.</p>
+              </div>
+
+              <div class="queue" id="queue" hidden>
+                <div class="queue-header">
+                  <div>
+                    <span class="queue-kicker">YOUR FILES</span>
+                    <h3><span id="fileCount">0</span> files selected</h3>
+                  </div>
+                  <div class="queue-actions">
+                    <button class="add-button" id="addButton" type="button">
+                      <span>+</span> Add files
+                    </button>
+                    <button class="text-button" id="clearButton" type="button">Clear all</button>
+                  </div>
+                </div>
+                <div class="file-preview" id="filePreview">
+                  <div class="preview-loading">
+                    <span></span>
+                    <p>Opening your file...</p>
+                  </div>
+                </div>
+                <div class="file-list" id="fileList"></div>
+                <div class="batch-progress" id="batchProgress" hidden>
+                  <div><span id="progressLabel">Preparing files...</span><b id="progressValue">0%</b></div>
+                  <span class="progress-track"><i id="progressBar"></i></span>
+                </div>
               </div>
             </div>
-            <h2>Drop your files here</h2>
-            <p>or choose from your device</p>
-            <button class="choose-button" id="chooseButton">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5h6l2-2h4l2 2h4v11H3z"/><circle cx="12" cy="13" r="3.2"/></svg>
-              Choose files
-            </button>
-            <small>Up to 500 MB per file</small>
           </div>
 
           <div class="trust-row">
@@ -64,29 +103,36 @@
             <span><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Lightning fast</span>
             <span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.6 2.6L16.5 9"/></svg> No signup needed</span>
           </div>
-
-          <div class="queue" id="queue" hidden>
-            <div class="queue-header">
-              <div>
-                <span class="queue-kicker">READY TO CONVERT</span>
-                <h3><span id="fileCount">0</span> files selected</h3>
-              </div>
-              <button class="text-button" id="clearButton">Clear all</button>
-            </div>
-            <div class="file-list" id="fileList"></div>
-          </div>
         </div>
 
         <div class="format-actions" id="formats" aria-label="Quick output formats">
-          <p>Download selected files as</p>
+          <div class="format-heading">
+            <div>
+              <span class="queue-kicker">CHOOSE YOUR OUTPUT</span>
+              <p id="formatHint">Upload a file, then choose its new format</p>
+            </div>
+            <span class="instant-note">One click · automatic download</span>
+          </div>
           <div class="format-cloud">
-            <button type="button" data-output="PDF">PDF</button>
-            <button type="button" data-output="DOCX">DOCX</button>
-            <button type="button" data-output="JPG">JPG</button>
-            <button type="button" data-output="PNG">PNG</button>
-            <button type="button" data-output="MP4">MP4</button>
-            <button type="button" data-output="MP3">MP3</button>
-            <button type="button" data-output="ZIP">ZIP</button>
+            <button type="button" data-output="PDF"><span>PDF</span><small>Document</small></button>
+            <button type="button" data-output="DOCX"><span>DOCX</span><small>Word</small></button>
+            <button type="button" data-output="JPG"><span>JPG</span><small>Image</small></button>
+            <button type="button" data-output="PNG"><span>PNG</span><small>Image</small></button>
+            <button type="button" data-output="WEBP"><span>WEBP</span><small>Web image</small></button>
+            <button type="button" data-output="MP4"><span>MP4</span><small>Video</small></button>
+            <button type="button" data-output="MP3"><span>MP3</span><small>Audio</small></button>
+            <button type="button" data-output="WAV"><span>WAV</span><small>Audio</small></button>
+            <button type="button" data-output="GIF"><span>GIF</span><small>Animation</small></button>
+            <button type="button" data-output="TXT"><span>TXT</span><small>Plain text</small></button>
+            <button type="button" data-output="HTML"><span>HTML</span><small>Web page</small></button>
+            <button type="button" data-output="XLSX"><span>XLSX</span><small>Excel</small></button>
+            <button type="button" data-output="CSV"><span>CSV</span><small>Table</small></button>
+            <button type="button" data-output="ZIP"><span>ZIP</span><small>Archive</small></button>
+          </div>
+          <div class="conversion-help">
+            <span>🔒 Files are deleted after conversion</span>
+            <span>⚡ Formats update automatically for each file</span>
+            <span>📱 Mobile-ready downloads</span>
           </div>
         </div>
       </section>
