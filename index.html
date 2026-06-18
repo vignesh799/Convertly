@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Convertly — fast, friendly file conversion for documents, images, audio, video and more.">
+  <title>Convertly — Convert anything</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="nav">
+      <a class="brand" href="#" aria-label="Convertly home">
+        <span class="brand-mark">
+          <svg viewBox="0 0 28 28" aria-hidden="true"><path d="M8.8 5.5h9.4a4.3 4.3 0 0 1 4.3 4.3v1.7M19.2 22.5H9.8a4.3 4.3 0 0 1-4.3-4.3v-1.7M18.5 8.5l4-4 4 4M9.5 19.5l-4 4-4-4"/></svg>
+        </span>
+        <span>Convertly</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#converter">Converter</a>
+        <a href="#about">About</a>
+        <a href="#contact">Contact</a>
+        <a href="#owner">Owner</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button class="icon-button" id="themeToggle" aria-label="Toggle dark mode">
+          <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
+        </button>
+        <a class="nav-button" href="#converter">Start converting</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" id="converter">
+        <div class="eyebrow"><span></span> One tool. Every format.</div>
+        <h1>Convert anything.<br><em>Keep everything.</em></h1>
+        <p class="hero-copy">Documents, images, audio, video, and more — transformed into the format you need, without the friction.</p>
+
+        <div class="converter-card">
+          <div class="upload-zone" id="uploadZone" tabindex="0" role="button" aria-label="Upload files">
+            <input id="fileInput" type="file" multiple hidden>
+            <div class="upload-art" aria-hidden="true">
+              <div class="file-card file-back"><span>JPG</span></div>
+              <div class="file-card file-front">
+                <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+              </div>
+            </div>
+            <h2>Drop your files here</h2>
+            <p>or choose from your device</p>
+            <button class="choose-button" id="chooseButton">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5h6l2-2h4l2 2h4v11H3z"/><circle cx="12" cy="13" r="3.2"/></svg>
+              Choose files
+            </button>
+            <small>Up to 500 MB per file</small>
+          </div>
+
+          <div class="trust-row">
+            <span><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.8-2.9 8.1-7 10-4.1-1.9-7-5.2-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg> Secure & private</span>
+            <span><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Lightning fast</span>
+            <span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l2.6 2.6L16.5 9"/></svg> No signup needed</span>
+          </div>
+
+          <div class="queue" id="queue" hidden>
+            <div class="queue-header">
+              <div>
+                <span class="queue-kicker">READY TO CONVERT</span>
+                <h3><span id="fileCount">0</span> files selected</h3>
+              </div>
+              <button class="text-button" id="clearButton">Clear all</button>
+            </div>
+            <div class="file-list" id="fileList"></div>
+          </div>
+        </div>
+
+        <div class="format-actions" id="formats" aria-label="Quick output formats">
+          <p>Download selected files as</p>
+          <div class="format-cloud">
+            <button type="button" data-output="PDF">PDF</button>
+            <button type="button" data-output="DOCX">DOCX</button>
+            <button type="button" data-output="JPG">JPG</button>
+            <button type="button" data-output="PNG">PNG</button>
+            <button type="button" data-output="MP4">MP4</button>
+            <button type="button" data-output="MP3">MP3</button>
+            <button type="button" data-output="ZIP">ZIP</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="popular-section">
+        <div class="section-heading">
+          <div>
+            <span class="section-kicker">QUICK START</span>
+            <h2>Popular conversions</h2>
+          </div>
+          <p>The shortcuts people reach for most.</p>
+        </div>
+        <div class="conversion-grid">
+          <button class="format-card" data-from=".PDF" data-to="DOCX">
+            <span class="format-icon coral">PDF</span><span class="format-info"><b>PDF to Word</b><small>Editable documents</small></span><span class="arrow">↗</span>
+          </button>
+          <button class="format-card" data-from="image/*" data-to="JPG">
+            <span class="format-icon purple">IMG</span><span class="format-info"><b>Image to JPG</b><small>Sharp, compact images</small></span><span class="arrow">↗</span>
+          </button>
+          <button class="format-card" data-from=".DOC,.DOCX" data-to="PDF">
+            <span class="format-icon blue">DOC</span><span class="format-info"><b>Word to PDF</b><small>Ready to share</small></span><span class="arrow">↗</span>
+          </button>
+          <button class="format-card" data-from="video/*" data-to="MP3">
+            <span class="format-icon mint">VID</span><span class="format-info"><b>Video to MP3</b><small>Extract clean audio</small></span><span class="arrow">↗</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="steps-section" id="how-it-works">
+        <div class="section-heading centered">
+          <span class="section-kicker">SIMPLE BY DESIGN</span>
+          <h2>Three steps. That’s it.</h2>
+        </div>
+        <div class="steps">
+          <article><span>01</span><h3>Choose your file</h3><p>Drop in one or many files from your device.</p></article>
+          <article><span>02</span><h3>Pick a format</h3><p>Select the output that fits what you’re doing.</p></article>
+          <article><span>03</span><h3>Download</h3><p>Your converted files are ready in moments.</p></article>
+        </div>
+      </section>
+
+      <section class="about-section" id="about">
+        <div class="about-intro">
+          <span class="section-kicker">ABOUT CONVERTLY</span>
+          <h2>Every conversion,<br>made uncomplicated.</h2>
+          <p>Convertly is a private, easy-to-use file converter created to turn everyday documents, images, spreadsheets, audio, and video into the format you need—without accounts, confusing menus, or unnecessary waiting.</p>
+        </div>
+        <div class="about-grid">
+          <article>
+            <span class="about-number">01</span>
+            <div><h3>Upload your file</h3><p>Choose a file from your device or simply drag and drop it into the upload area. Files up to 500 MB are supported.</p></div>
+          </article>
+          <article>
+            <span class="about-number">02</span>
+            <div><h3>Choose the output</h3><p>Available format buttons appear below your file. Unavailable formats are automatically disabled, so there is no guesswork.</p></div>
+          </article>
+          <article>
+            <span class="about-number">03</span>
+            <div><h3>Get your download</h3><p>Click PDF, DOCX, JPG, PNG, MP4, MP3, ZIP, or another available format. Conversion starts and the finished file downloads automatically.</p></div>
+          </article>
+          <article>
+            <span class="about-number">04</span>
+            <div><h3>Your files stay private</h3><p>Files are processed by the local conversion service and removed from temporary storage after each request. No signup is required.</p></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="people-section">
+        <article class="contact-card" id="contact">
+          <span class="section-kicker">LET’S CONNECT</span>
+          <h2>Need a little help?</h2>
+          <p>Questions, suggestions, or conversion trouble? Reach out directly—we’d be happy to hear from you. ✨</p>
+          <div class="contact-links">
+            <a href="tel:+918970904325">
+              <span class="contact-emoji">📞</span>
+              <span><small>CALL OR WHATSAPP</small><b>+91 89709 04325</b></span>
+            </a>
+            <a href="mailto:vigneshshetty799@gmail.com">
+              <span class="contact-emoji">💌</span>
+              <span><small>SEND AN EMAIL</small><b>vigneshshetty799@gmail.com</b></span>
+            </a>
+          </div>
+        </article>
+
+        <article class="owner-card" id="owner">
+          <div class="owner-photo" aria-label="Vignesh Shetty">
+            <img src="assets/vignesh-shetty.png" alt="Vignesh Shetty, owner of Convertly">
+            <i>Owner</i>
+          </div>
+          <div class="owner-copy">
+            <span class="section-kicker">MEET THE OWNER</span>
+            <h2>Vignesh Shetty</h2>
+            <p>Creator and owner of Convertly—building practical, thoughtfully designed tools that make everyday digital work feel simpler.</p>
+            <a class="linkedin-button" href="https://www.linkedin.com/in/vignesh-shetty-71b2a9221" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9v9M6 6.5v.01M10 18v-5a4 4 0 0 1 8 0v5M10 9v9"/></svg>
+              Connect on LinkedIn
+              <span>↗</span>
+            </a>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <a class="brand" href="#"><span class="brand-mark">↔</span><span>Convertly</span></a>
+      <div class="footer-links"><a href="#about">About</a><a href="#contact">Contact</a><a href="#owner">Owner</a></div>
+      <span>© 2026 Convertly</span>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
