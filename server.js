@@ -91,6 +91,7 @@ app.use((error, _request, response, _next) => {
   response.status(500).json({ error: "Something went wrong while processing the file." });
 });
 
-app.listen(port, "127.0.0.1", () => {
-  console.log(`Convertly is ready at http://127.0.0.1:${port}`);
+const host = process.env.HOST || "0.0.0.0";
+app.listen(port, host, () => {
+  console.log(`Convertly is ready on ${host}:${port}`);
 });
