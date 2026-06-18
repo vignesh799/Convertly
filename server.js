@@ -9,7 +9,36 @@ const { capabilities, convertFile, mimeTypes, extensionOf } = require("./convert
 const app = express();
 const port = Number(process.env.PORT) || 4173;
 const uploadDir = path.join(os.tmpdir(), "convertly-uploads");
+const downloadDir = path.join(os.tmpdir(), "convertly-downloads");
 const maxFileSize = 500 * 1024 * 1024;
+const pendingDownloads = new Map();
+const downloadLifetimeMs = 10 * 60 * 1000;
+
+function contentDisposition(filename) {
+  const asciiName = filename.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_");
+  return `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
+async function createDownload(result, filename) {
+  await fs.mkdir(downloadDir, { recursive: true });
+  const token = crypto.randomUUID();
+  const filePath = path.join(downloadDir, token);
+  await fs.writeFile(filePath, result.buffer);
+  const download = {
+    filePath,
+    filename,
+    extension: result.extension,
+    mimeType: mimeTypes[result.extension] || "application/octet-stream",
+    expiresAt: Date.now() + downloadLifetimeMs
+  };
+  pendingDownloads.set(token, download);
+  const timer = setTimeout(async () => {
+    pendingDownloads.delete(token);
+    await fs.rm(filePath, { force: true }).catch(() => {});
+  }, downloadLifetimeMs);
+  timer.unref?.();
+  return token;
+}
 
 const storage = multer.diskStorage({
   destination: async (_request, _file, callback) => {
@@ -56,6 +85,25 @@ app.get("/api/formats", (_request, response) => {
   response.json(capabilities);
 });
 
+app.get("/api/download/:token", async (request, response) => {
+  const download = pendingDownloads.get(request.params.token);
+  if (!download || download.expiresAt < Date.now()) {
+    return response.status(404).send("This download link has expired.");
+  }
+  pendingDownloads.delete(request.params.token);
+  response.set({
+    "Content-Type": download.mimeType,
+    "Content-Disposition": contentDisposition(download.filename),
+    "Cache-Control": "no-store, max-age=0",
+    "X-Content-Type-Options": "nosniff",
+    "X-Convertly-Format": download.extension.toUpperCase()
+  });
+  response.sendFile(download.filePath, async error => {
+    await fs.rm(download.filePath, { force: true }).catch(() => {});
+    if (error && !response.headersSent) response.status(error.statusCode || 500).end();
+  });
+});
+
 app.post("/api/convert", upload.single("file"), async (request, response) => {
   if (!request.file) return response.status(400).json({ error: "Choose a file to convert." });
   const output = String(request.body.output || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -67,12 +115,21 @@ app.post("/api/convert", upload.single("file"), async (request, response) => {
   try {
     const result = await convertFile(request.file.path, request.file.originalname, output);
     const filename = `${originalBase}${result.suffix || ""}.${result.extension}`;
+    if (request.query.delivery === "url") {
+      const token = await createDownload(result, filename);
+      return response.set("Cache-Control", "no-store").json({
+        filename,
+        format: result.extension.toUpperCase(),
+        downloadUrl: `/api/download/${token}`
+      });
+    }
     response.set({
       "Content-Type": mimeTypes[result.extension] || "application/octet-stream",
-      "Content-Disposition": `attachment; filename="${filename.replace(/"/g, "")}"`,
+      "Content-Disposition": contentDisposition(filename),
       "Content-Length": String(result.buffer.length),
       "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff"
+      "X-Content-Type-Options": "nosniff",
+      "X-Convertly-Format": result.extension.toUpperCase()
     });
     response.send(result.buffer);
   } catch (error) {

@@ -198,20 +198,14 @@ function showToast(message) {
   showToast.timer = setTimeout(() => toast.classList.remove("show"), 3000);
 }
 
-function downloadBlob(blob, filename) {
+function startDirectDownload(downloadUrl, filename) {
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
+  link.href = new URL(downloadUrl, apiBase || location.origin).href;
   link.download = filename;
+  link.rel = "noopener";
   document.body.appendChild(link);
   link.click();
   link.remove();
-  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-}
-
-function responseFilename(response, fallback) {
-  const disposition = response.headers.get("content-disposition") || "";
-  const match = disposition.match(/filename="([^"]+)"/i);
-  return match?.[1] || fallback;
 }
 
 async function convertItem(item, index) {
@@ -221,12 +215,12 @@ async function convertItem(item, index) {
   const body = new FormData();
   body.append("file", item.file);
   body.append("output", item.output.toLowerCase());
-  let response = await fetch(`${apiBase}/api/convert`, { method: "POST", body });
+  let response = await fetch(`${apiBase}/api/convert?delivery=url`, { method: "POST", body });
   if (response.status === 404 || response.status === 405) {
     const fallbackBase = "http://127.0.0.1:4173";
     if (apiBase !== fallbackBase) {
       apiBase = fallbackBase;
-      response = await fetch(`${apiBase}/api/convert`, { method: "POST", body });
+      response = await fetch(`${apiBase}/api/convert?delivery=url`, { method: "POST", body });
     }
   }
   if (!response.ok) {
@@ -235,9 +229,9 @@ async function convertItem(item, index) {
   }
   item.status = "Downloading…";
   renderFiles();
-  const blob = await response.blob();
-  const fallback = `${item.file.name.replace(/\.[^.]+$/, "")}.${item.output.toLowerCase()}`;
-  downloadBlob(blob, responseFilename(response, fallback));
+  const result = await response.json();
+  if (!result.downloadUrl || !result.filename) throw new Error("The server returned an invalid download.");
+  startDirectDownload(result.downloadUrl, result.filename);
   files[index].status = "Complete";
   renderFiles();
 }
